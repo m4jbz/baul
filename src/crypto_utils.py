@@ -28,15 +28,16 @@ def derive_key(password: str, salt: bytes) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
 def generate_vault_key(password: str) -> bytes:
-    llave_fernet = Fernet.generate_key()
+    # Llave maestra, es la encargada de encriptar y decriptar los archivos
+    key_fernet = Fernet.generate_key()
     salt = os.urandom(16)
 
-    llave_para_cifrar = derive_key(password, salt)
+    # Esta llave se encargara de desbloquear a la llave maestra
+    key_to_encrypt = derive_key(password, salt)
+    f = Fernet(key_to_encrypt)
+    key_fernet_encrypted = f.encrypt(key_fernet)
 
-    f = Fernet(llave_para_cifrar)
-    llave_fernet_cifrada = f.encrypt(llave_fernet)
-
-    return salt + llave_fernet_cifrada
+    return salt + key_fernet_encrypted
 
 # Esta función divide la key en dos (salt, contraseña cifrada)
 # e intenta desifrarla.
