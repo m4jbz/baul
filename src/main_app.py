@@ -39,7 +39,7 @@ class FileTreeView(ctk.CTkScrollableFrame):
 
     def populate_tree(self, current_path, row, indent=0, parent_display_path=""):
         try:
-            # Leemos los nombres de archivo cifrados del disco
+            # Se lee los nombres de archivo cifrados del disco
             items = sorted(os.listdir(current_path))
         except (FileNotFoundError, PermissionError) as e:
             print(f"Error al acceder a {current_path}: {e}")
@@ -50,11 +50,11 @@ class FileTreeView(ctk.CTkScrollableFrame):
             self.folder_children[parent_display_path] = []
 
         dirs = [item for item in items if os.path.isdir(os.path.join(current_path, item))]
-        # MODIFICADO: Solo listamos archivos que terminan en .enc
+        
+        # Solo se enlistan archivos que terminan en .enc
         files = [item for item in items if not os.path.isdir(os.path.join(current_path, item)) and item.endswith(".enc")]
         
         all_items = dirs + files
-
         current_display_children = []
 
         for item in all_items:
@@ -67,11 +67,19 @@ class FileTreeView(ctk.CTkScrollableFrame):
             display_name = ""
             if is_dir:
                 icon = "📁"
-                display_name = item # Las carpetas no están cifradas
+                try:
+                    # Se desencripta el nombre de la carpeta
+                    encrypted_name_hex = item
+                    decrypted_name_bytes = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex))
+                    display_name = decrypted_name_bytes.decode()
+                except (InvalidToken, ValueError, TypeError):
+                    display_name = f"¡Carpeta corrupta! ({item[:10]}...)"
+                except Exception:
+                     display_name = f"¡Error al leer! ({item[:10]}...)"
             else:
                 icon = "📄"
                 try:
-                    # Desciframos el nombre del archivo para mostrarlo
+                    # Se desencripta el nombre del archivo para mostrarlo
                     encrypted_name_hex = item.replace(".enc", "")
                     decrypted_name_bytes = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex))
                     display_name = decrypted_name_bytes.decode()
@@ -80,7 +88,7 @@ class FileTreeView(ctk.CTkScrollableFrame):
                 except Exception:
                      display_name = f"¡Error al leer! ({item[:10]}...)"
 
-            # Usamos el 'display_name' para el arbol y los diccionarios
+            # Se usa el 'display_name' para el arbol y los diccionarios
             # El 'display_path' es la ruta visual, no la real
             display_path = os.path.join(parent_display_path, display_name)
             current_display_children.append(display_path)
@@ -90,7 +98,7 @@ class FileTreeView(ctk.CTkScrollableFrame):
             cb.grid(row=row, column=0, sticky="w", padx=(indent * 20, 0), pady=2)
             
             self.checkboxes[display_path] = cb
-            # Guardamos el mapeo: "Ruta/Visual/Archivo.txt" -> "E:/Baul/...hex...enc"
+            # Se guarda el mapeo: "Ruta/Visual/Archivo.txt" -> "E:/Baul/...hex...enc"
             self.real_path_map[display_path] = real_item_path 
             row += 1
             
@@ -103,11 +111,10 @@ class FileTreeView(ctk.CTkScrollableFrame):
         return row
 
     def get_checked_items(self):
-        """Retorna una lista de las RUTAS REALES (cifradas) de los items seleccionados."""
         checked_real_paths = []
         for display_path, checkbox in self.checkboxes.items():
             if checkbox.get() == 1:
-                # Añadimos la ruta real cifrada, no la visual
+                # Se añade la ruta real cifrada, no la visual
                 checked_real_paths.append(self.real_path_map[display_path])
         return checked_real_paths
         
@@ -120,7 +127,6 @@ class FileTreeView(ctk.CTkScrollableFrame):
         self.real_path_map = {}
         self.populate_tree(self.path, 0, parent_display_path="")
 
-# ... (Clase ChangeHandler sin cambios) ...
 class ChangeHandler(FileSystemEventHandler):
     def __init__(self, app_instance):
         self.app = app_instance
@@ -135,7 +141,6 @@ class ChangeHandler(FileSystemEventHandler):
                 self.app.after(100, self.app.tree_view.refresh)
 
 class App(ctk.CTk):
-    # MODIFICADO: __init__ ahora acepta la llave de sesión
     def __init__(self, baul_path, session_key: Fernet):
         super().__init__()
 
@@ -158,7 +163,6 @@ class App(ctk.CTk):
         file_tree.grid_rowconfigure(1, weight=1)
         file_tree.grid_columnconfigure(0, weight=1)
 
-        # MODIFICADO: Pasamos la llave 'fernet' al FileTreeView
         self.tree_view = FileTreeView(file_tree, path=self.baul_path, fernet=self.fernet)
         self.tree_view.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
 
@@ -179,7 +183,6 @@ class App(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         pywinstyles.apply_dnd(drop_area, self.on_drop_to_usb)
 
-    # MODIFICADO: Esta función ahora CIFRA todo lo que se le arrastra
     def on_drop_to_usb(self, files_dragged):
         if not files_dragged:
             return
@@ -194,26 +197,23 @@ class App(ctk.CTk):
             messagebox.showerror("Error", f"Ocurrió un error al cifrar y copiar:\n{e}")
 
     def encrypt_and_copy_item(self, source_path: Path, destination_folder: str):
-        """
-        Cifra y copia un item (archivo o carpeta) al baúl.
-        Las carpetas se recrean y los archivos dentro se cifran.
-        """
         if source_path.is_dir():
-            # Si es una carpeta, la creamos (sin cifrar) en el destino
-            new_dest_folder = os.path.join(destination_folder, source_path.name)
+            # Si es una carpeta, ciframos su nombre y la creamos
+            encrypted_name_hex = self.fernet.encrypt(source_path.name.encode()).hex()
+            new_dest_folder = os.path.join(destination_folder, encrypted_name_hex) # Sin .enc
             os.makedirs(new_dest_folder, exist_ok=True)
+            
             # Recursión: Ciframos todo el contenido de esta carpeta
             for sub_item in source_path.iterdir():
                 self.encrypt_and_copy_item(sub_item, new_dest_folder)
         
         elif source_path.is_file():
             # Si es un archivo, ciframos el nombre y el contenido
-            
-            # 1. Cifrar nombre
+            # Cifrar nombre
             encrypted_name_hex = self.fernet.encrypt(source_path.name.encode()).hex()
             destination_path = os.path.join(destination_folder, encrypted_name_hex + ".enc")
             
-            # 2. Cifrar contenido (¡Cuidado con archivos grandes!)
+            # Cifrar contenido (¡Cuidado con archivos grandes!)
             # Fernet carga todo en RAM. Para archivos > 1GB esto puede ser lento.
             # Como pediste, mantenemos la implementación simple por ahora.
             with open(source_path, 'rb') as f:
@@ -224,7 +224,7 @@ class App(ctk.CTk):
             with open(destination_path, 'wb') as f:
                 f.write(encrypted_data)
 
-    # MODIFICADO: Esta función ahora DESCIFRA todo lo seleccionado
+    # Esta función ahora DESCIFRA todo lo seleccionado
     def button_event(self):
         # get_checked_items() ya nos da las rutas reales (cifradas)
         checked_items_real_paths = self.tree_view.get_checked_items()
@@ -233,13 +233,13 @@ class App(ctk.CTk):
             messagebox.showwarning("Nada seleccionado", "Primero selecciona los archivos que quieres copiar.")
             return
 
-        # Filtramos la lista para evitar copias duplicadas
+        # Se filtra la lista para evitar copias duplicadas
         top_level_items = []
         checked_set = set(checked_items_real_paths)
         for item_path in checked_items_real_paths:
             parent = os.path.dirname(item_path)
             if parent not in checked_set or parent == self.baul_path:
-                 # Añadimos si su padre no está en la lista, O si su padre es la raíz del baúl
+                 # Se añade si su padre no está en la lista, O si su padre es la raíz del baúl
                 if item_path != self.baul_path: # Evitamos añadir la propia raíz
                     top_level_items.append(item_path)
 
@@ -259,21 +259,25 @@ class App(ctk.CTk):
                 messagebox.showerror("Error", f"Ocurrió un error al descifrar y copiar:\n{e}")
 
     def decrypt_and_copy_item(self, source_path: Path, destination_folder: str):
-        """
-        Descifra y copia un item (archivo o carpeta) del baúl a la PC.
-        """
         if source_path.is_dir():
-            # Si es una carpeta, creamos la carpeta (descifrada = nombre normal)
-            new_dest_folder = os.path.join(destination_folder, source_path.name)
-            os.makedirs(new_dest_folder, exist_ok=True)
+            # Si es una carpeta, desciframos su nombre
+            try:
+                encrypted_name_hex = source_path.name
+                decrypted_name = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex)).decode()
+                new_dest_folder = os.path.join(destination_folder, decrypted_name)
+                os.makedirs(new_dest_folder, exist_ok=True)
+            except Exception as e:
+                print(f"No se pudo descifrar el nombre de la carpeta {source_path.name}: {e}")
+                messagebox.showwarning("Error de nombre", f"No se pudo descifrar el nombre de la carpeta {source_path.name}. Se omitirá.")
+                return # Importante: no continuar si no se puede crear la carpeta
+                
             # Recursión: Desciframos todo su contenido
             for sub_item in source_path.iterdir():
                 self.decrypt_and_copy_item(sub_item, new_dest_folder)
 
         elif source_path.is_file() and source_path.name.endswith(".enc"):
             # Si es un archivo .enc...
-            
-            # 1. Descifrar nombre
+            # Descifrar nombre
             try:
                 encrypted_name_hex = source_path.name.replace(".enc", "")
                 decrypted_name = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex)).decode()
@@ -283,7 +287,7 @@ class App(ctk.CTk):
                 messagebox.showwarning("Error de nombre", f"No se pudo descifrar el nombre del archivo {source_path.name}. Se omitirá.")
                 return
 
-            # 2. Descifrar contenido
+            # Descifrar contenido
             try:
                 with open(source_path, 'rb') as f:
                     encrypted_data = f.read()
@@ -296,7 +300,6 @@ class App(ctk.CTk):
                 messagebox.showerror("Error", f"Error de llave al descifrar {decrypted_name}. ¿Archivo corrupto?")
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo descifrar el contenido de {decrypted_name}: {e}")
-
 
     def on_closing(self):
         self.observer.stop()
