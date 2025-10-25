@@ -1,14 +1,11 @@
 import customtkinter as ctk
 import os
-import shutil
 from tkinter import filedialog, messagebox
+
 import crypto_utils
-import login_gui # Para lanzarlo después de configurar
+import login_gui
 
 class SetupWindow(ctk.CTk):
-    """
-    Ventana para la configuración inicial (Fase 2 de respuesta.txt).
-    """
     def __init__(self, baul_path, key_file_path):
         super().__init__()
 
@@ -20,14 +17,12 @@ class SetupWindow(ctk.CTk):
         self.geometry("400x350")
         self.resizable(False, False)
 
-        # Frame principal
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.pack(expand=True, fill="both", padx=20, pady=20)
         
         self.show_initial_options()
 
     def show_initial_options(self):
-        """Muestra los botones 'Crear' o 'Restaurar'."""
         self.clear_frame()
         label = ctk.CTkLabel(self.main_frame, text="No se ha encontrado un Baúl en esta USB.\n¿Qué deseas hacer?",
                              font=ctk.CTkFont(size=14))
@@ -40,7 +35,6 @@ class SetupWindow(ctk.CTk):
         btn_restore.pack(pady=10, fill="x", padx=20)
 
     def show_create_vault(self):
-        """Muestra la UI para crear una nueva contraseña."""
         self.clear_frame()
         label = ctk.CTkLabel(self.main_frame, text="Crea tu Contraseña Maestra", font=ctk.CTkFont(size=16))
         label.pack(pady=15)
@@ -59,30 +53,29 @@ class SetupWindow(ctk.CTk):
         btn_back.pack(pady=5, fill="x", padx=20)
 
     def create_new_vault(self):
-        """Lógica para crear y guardar la nueva llave."""
         password = self.pass_entry.get()
         confirm_password = self.confirm_pass_entry.get()
 
         if not password or not confirm_password:
-            messagebox.showerror("Error", "Ambos campos son obligatorios.")
+            messagebox.showerror("ERROR", "Ambos campos son obligatorios.")
             return
 
         if password != confirm_password:
-            messagebox.showerror("Error", "Las contraseñas no coinciden.")
+            messagebox.showerror("ERROR", "Las contraseñas no coinciden.")
             return
 
         try:
-            # 1. Generar el contenido de la llave
+            # Generar el contenido de la llave
             vault_key_content = crypto_utils.generate_vault_key(password)
 
-            # 2. Crear directorios
+            # Crear directorios
             os.makedirs(self.credentials_path, exist_ok=True)
             
-            # 3. Guardar el vault.key en la USB
+            # Guardar el vault.key en la USB
             with open(self.key_file_path, "wb") as f:
                 f.write(vault_key_content)
             
-            # 4. Forzar Respaldo OBLIGATORIO
+            # Forzar Respaldo OBLIGATORIO
             messagebox.showinfo("Respaldo Obligatorio", 
                                 "¡Baúl creado! Ahora DEBES guardar una copia de seguridad de tu llave.\n"
                                 "Si pierdes esta USB Y este archivo de respaldo, tus datos serán irrecuperables.")
@@ -101,14 +94,13 @@ class SetupWindow(ctk.CTk):
                     f.write(vault_key_content)
                 messagebox.showinfo("Éxito", "Respaldo guardado con éxito.")
 
-            # 5. Finalizar y pasar al login
+            # Finalizar y pasar al login
             self.launch_login()
 
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo crear el Baúl: {e}")
+            messagebox.showerror("ERROR", f"No se pudo crear el Baúl: {e}")
 
     def show_restore_vault(self):
-        """Muestra la UI para restaurar desde un .key."""
         self.clear_frame()
         label = ctk.CTkLabel(self.main_frame, text="Restaurar Baúl desde copia", font=ctk.CTkFont(size=16))
         label.pack(pady=15)
@@ -142,53 +134,42 @@ class SetupWindow(ctk.CTk):
                     self.key_file_content = f.read()
                 self.key_file_label.configure(text=os.path.basename(key_path), text_color="green")
             except Exception as e:
-                messagebox.showerror("Error", f"No se pudo leer el archivo: {e}")
+                messagebox.showerror("ERROR", f"No se pudo leer el archivo: {e}")
                 
     def restore_vault(self):
         password = self.restore_pass_entry.get()
         if not password:
-            messagebox.showerror("Error", "Ingresa tu contraseña.")
+            messagebox.showerror("ERROR", "Ingresa tu contraseña.")
             return
             
         if not self.key_file_content:
-            messagebox.showerror("Error", "Selecciona tu archivo de respaldo .key.")
+            messagebox.showerror("ERROR", "Selecciona tu archivo de respaldo .key.")
             return
             
         try:
-            # 1. Verificar que la contraseña y la llave sean correctas
+            # Verificar que la contraseña y la llave sean correctas
             crypto_utils.unlock_vault_key(password, self.key_file_content)
             
-            # 2. Si es correcto, crear directorios y copiar el archivo
+            # Si es correcto, crear directorios y copiar el archivo
             os.makedirs(self.credentials_path, exist_ok=True)
             with open(self.key_file_path, "wb") as f:
                 f.write(self.key_file_content)
                 
             messagebox.showinfo("Éxito", "¡Baúl restaurado con éxito en la USB!")
             
-            # 3. Finalizar y pasar al login
+            # Finalizar y pasar al login
             self.launch_login()
             
         except ValueError as e: # Captura el "Contraseña incorrecta"
-            messagebox.showerror("Error", f"{e}")
+            messagebox.showerror("ERROR", f"{e}")
         except Exception as e:
-            messagebox.showerror("Error", f"Ocurrió un error inesperado: {e}")
+            messagebox.showerror("ERROR", f"Ocurrió un error inesperado: {e}")
 
     def clear_frame(self):
-        """Limpia el frame principal."""
         for widget in self.main_frame.winfo_children():
             widget.destroy()
 
     def launch_login(self):
-        """Cierra esta ventana y abre la de login."""
         self.destroy()
         login_app = login_gui.LoginWindow(baul_path=self.baul_path, key_file_path=self.key_file_path)
         login_app.mainloop()
-
-if __name__ == "__main__":
-    # Para pruebas (ejecutar este archivo directamente)
-    if not os.path.exists("E:/Baul"):
-        os.makedirs("E:/Baul", exist_ok=True)
-        
-    app = SetupWindow(baul_path=Path("E:/Baul"), 
-                      key_file_path=Path("E:/Baul/.credentials/vault.key"))
-    app.mainloop()

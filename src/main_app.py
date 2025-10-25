@@ -1,13 +1,11 @@
 import customtkinter as ctk
-import tkinter as tk
 import os, time, pywinstyles
-import shutil
 from tkinter import messagebox
 from pathlib import Path
 from tkinter import filedialog
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from cryptography.fernet import Fernet, InvalidToken # <-- CORRECCIÓN AQUÍ
+from cryptography.fernet import Fernet, InvalidToken
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -304,26 +302,3 @@ class App(ctk.CTk):
         self.observer.stop()
         self.observer.join()
         self.destroy()
-
-if __name__ == "__main__":
-    # --- Para Pruebas (asumiendo que ya está configurado) ---
-    # 1. Ejecuta setup_gui.py primero para crear un 'vault.key' de prueba.
-    # 2. Ejecuta login_gui.py para desbloquear y lanzar esta app.
-    
-    # Este bloque 'if' es solo para evitar que se lance sin un login.
-    # Deberías ejecutar 'run.py' para el flujo normal.
-    print("Este archivo no debe ejecutarse directamente.")
-    print("Ejecuta 'run.py' para iniciar la aplicación.")
-    
-    # Si de todas formas quieres probarlo, necesitas una llave y contraseña:
-    # 1. Crea una contraseña y una llave:
-    #    import crypto_utils
-    #    key_content = crypto_utils.generate_vault_key("tu_password")
-    #    with open("E:/Baul/.credentials/vault.key", "wb") as f: f.write(key_content)
-    # 2. Desbloquea la llave:
-    #    with open("E:/Baul/.credentials/vault.key", "rb") as f: key_content = f.read()
-    #    llave = crypto_utils.unlock_vault_key("tu_password", key_content)
-    # 3. Lanza la app:
-    #    app = App(baul_path="E:/Baul", session_key=llave)
-    #    app.mainloop()
-    pass

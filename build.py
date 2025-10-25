@@ -1,8 +1,6 @@
-import os
 import subprocess
 import customtkinter
 import pywinstyles
-import sys
 from pathlib import Path
 
 ICON_FILE = "assets/icon.ico" 
