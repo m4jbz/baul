@@ -127,16 +127,25 @@ class FileTreeView(ctk.CTkScrollableFrame):
         self.real_path_map = {}
         self.populate_tree(self.path, 0, parent_display_path="")
 
+# Clase para actualizar automaticamente el arbol de archivos
+# Utiliza un hilo de procesamiento separado para no congelar
+# la interfaz
 class ChangeHandler(FileSystemEventHandler):
     def __init__(self, app_instance):
         self.app = app_instance
-        self.last_event_time = 0
-        self.debounce_time = 0.5
+        self.last_event_time = 0 # Inicia el cronometro
+        self.debounce_time = 0.5 # 500 ms
 
+    # Verifica si ha pasado el debounce_time,
+    # si ya paso se reinicia el cronometro
     def on_any_event(self, event):
         current_time = time.time()
         if current_time - self.last_event_time > self.debounce_time:
             self.last_event_time = current_time
+            # Se asegura que la ventana principal siga existiendo
+            # para despues "decirle" a la ventana principal que en 100ms
+            # ejecute la función app.tree_view_.refresh en su propio
+            # hilo
             if self.app.winfo_exists():
                 self.app.after(100, self.app.tree_view.refresh)
 
