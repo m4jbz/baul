@@ -28,7 +28,7 @@ class UsbSelector(ctk.CTkToplevel):
 
         button = ctk.CTkButton(self, text="Aceptar", command=self.on_select)
         button.pack(pady=20)
-    
+
     def on_select(self):
         self.selected_usb = Path(self.usb_var.get())
         self.destroy()
@@ -45,7 +45,7 @@ def find_usb():
 
     if len(usbs) == 0:
         return "NO_USB", None
-    
+
     if len(usbs) > 1:
         return "MULTIPLE_USB", usbs
 
@@ -72,10 +72,10 @@ def handle_usb():
         selector = UsbSelector(root_selector, usb_info)
         selected_path = selector.get_selection()
         root_selector.destroy()
-        
+
         if not selected_path:
             return
-    
+
     elif status == "ONE_USB":
         selected_path = usb_info
 

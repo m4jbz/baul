@@ -9,13 +9,13 @@ class LoginWindow(ctk.CTk):
 
         self.baul_path = baul_path
         self.key_file_path = key_file_path
-        
+
         self.title("Desbloquear Baúl")
         self.geometry("350x200")
         self.resizable(False, False)
 
         self.grid_columnconfigure(0, weight=1)
-        
+
         label = ctk.CTkLabel(self, text="Ingresa tu Contraseña", font=ctk.CTkFont(size=16))
         label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
@@ -29,7 +29,7 @@ class LoginWindow(ctk.CTk):
 
         self.status_label = ctk.CTkLabel(self, text="", text_color="red")
         self.status_label.grid(row=3, column=0, padx=20, pady=(0, 10))
-        
+
         # Enfocar el campo de contraseña al iniciar
         self.pass_entry.focus()
 
@@ -48,10 +48,10 @@ class LoginWindow(ctk.CTk):
             # Leer el contenido del 'vault.key'
             with open(self.key_file_path, "rb") as f:
                 vault_key_content = f.read()
-            
+
             # Intentar desbloquear
             session_key = crypto_utils.unlock_vault_key(password, vault_key_content)
-            
+
             # Si todo salio bien, manda a llamar main_app.py
             # para abrir la venta principal
             self.destroy()
