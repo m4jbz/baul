@@ -1,11 +1,14 @@
 import customtkinter as ctk
-import os, time, pywinstyles
+import os, time
+# Se elimina pywinstyles
 from tkinter import messagebox
 from pathlib import Path
 from tkinter import filedialog
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from cryptography.fernet import Fernet, InvalidToken
+# Se importa la librería estándar para Drag and Drop
+from tkinterdnd2 import DND_FILES, TkinterDnD 
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -70,22 +73,22 @@ class FileTreeView(ctk.CTkScrollableFrame):
                     # Se desencripta el nombre de la carpeta
                     encrypted_name_hex = item
                     decrypted_name_bytes = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex))
-                    display_name = decrypted_name_bytes.decode()
+                    display_name = decrypted_name_bytes.decode('utf-8')
                 except (InvalidToken, ValueError, TypeError):
                     display_name = f"¡Carpeta corrupta! ({item[:10]}...)"
                 except Exception:
-                     display_name = f"¡Error al leer! ({item[:10]}...)"
+                        display_name = f"¡Error al leer! ({item[:10]}...)"
             else:
                 icon = "📄"
                 try:
                     # Se desencripta el nombre del archivo para mostrarlo
                     encrypted_name_hex = item.replace(".enc", "")
                     decrypted_name_bytes = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex))
-                    display_name = decrypted_name_bytes.decode()
+                    display_name = decrypted_name_bytes.decode('utf-8')
                 except (InvalidToken, ValueError, TypeError):
                     display_name = f"¡Archivo corrupto! ({item[:10]}...)"
                 except Exception:
-                     display_name = f"¡Error al leer! ({item[:10]}...)"
+                        display_name = f"¡Error al leer! ({item[:10]}...)"
 
             # Se usa el 'display_name' para el arbol y los diccionarios
             # El 'display_path' es la ruta visual, no la real
@@ -148,9 +151,16 @@ class ChangeHandler(FileSystemEventHandler):
             if self.app.winfo_exists():
                 self.app.after(100, self.app.tree_view.refresh)
 
-class App(ctk.CTk):
+class App(ctk.CTk, TkinterDnD.Tk):
     def __init__(self, baul_path, session_key: Fernet):
         super().__init__()
+        
+        try:
+            self.TkdndVersion = TkinterDnD._require(self)
+        except Exception as e:
+            messagebox.showerror("Error de DND", f"No se pudo inicializar la librería Drag and Drop (TkinterDnD).\n{e}")
+            exit(1)
+
 
         self.baul_path = baul_path
         self.fernet = session_key # La llave de sesión descifrada
@@ -189,7 +199,18 @@ class App(ctk.CTk):
         self.observer.start()
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-        pywinstyles.apply_dnd(drop_area, self.on_drop_to_usb)
+        
+        drop_area.drop_target_register(DND_FILES)
+        drop_area.dnd_bind('<<Drop>>', self.on_drop_dnd_event)
+
+    def on_drop_dnd_event(self, event):
+        # event.data es una cadena Tcl.
+        # Puede tener archivos con espacios entre llaves {}.
+        # Usamos splitlist para manejar esto correctamente.
+        files_dragged = self.tk.splitlist(event.data)
+        
+        # Pasamos la lista a la función lógica existente
+        self.on_drop_to_usb(files_dragged)
 
     def on_drop_to_usb(self, files_dragged):
         if not files_dragged:
@@ -207,7 +228,7 @@ class App(ctk.CTk):
     def encrypt_and_copy_item(self, source_path: Path, destination_folder: str):
         if source_path.is_dir():
             # Si es una carpeta, ciframos su nombre y la creamos
-            encrypted_name_hex = self.fernet.encrypt(source_path.name.encode()).hex()
+            encrypted_name_hex = self.fernet.encrypt(source_path.name.encode('utf-8')).hex()
             new_dest_folder = os.path.join(destination_folder, encrypted_name_hex) # Sin .enc
             os.makedirs(new_dest_folder, exist_ok=True)
 
@@ -218,7 +239,7 @@ class App(ctk.CTk):
         elif source_path.is_file():
             # Si es un archivo, ciframos el nombre y el contenido
             # Cifrar nombre
-            encrypted_name_hex = self.fernet.encrypt(source_path.name.encode()).hex()
+            encrypted_name_hex = self.fernet.encrypt(source_path.name.encode('utf-8')).hex()
             destination_path = os.path.join(destination_folder, encrypted_name_hex + ".enc")
 
             # Cifrar contenido (¡Cuidado con archivos grandes!)
@@ -247,7 +268,7 @@ class App(ctk.CTk):
         for item_path in checked_items_real_paths:
             parent = os.path.dirname(item_path)
             if parent not in checked_set or parent == self.baul_path:
-                 # Se añade si su padre no está en la lista, O si su padre es la raíz del baúl
+                # Se añade si su padre no está en la lista, O si su padre es la raíz del baúl
                 if item_path != self.baul_path: # Evitamos añadir la propia raíz
                     top_level_items.append(item_path)
 
@@ -271,7 +292,7 @@ class App(ctk.CTk):
             # Si es una carpeta, desciframos su nombre
             try:
                 encrypted_name_hex = source_path.name
-                decrypted_name = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex)).decode()
+                decrypted_name = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex)).decode('utf-8')
                 new_dest_folder = os.path.join(destination_folder, decrypted_name)
                 os.makedirs(new_dest_folder, exist_ok=True)
             except Exception as e:
@@ -288,7 +309,7 @@ class App(ctk.CTk):
             # Descifrar nombre
             try:
                 encrypted_name_hex = source_path.name.replace(".enc", "")
-                decrypted_name = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex)).decode()
+                decrypted_name = self.fernet.decrypt(bytes.fromhex(encrypted_name_hex)).decode('utf-8')
                 destination_path = os.path.join(destination_folder, decrypted_name)
             except Exception as e:
                 print(f"No se pudo descifrar el nombre {source_path.name}: {e}")

@@ -22,8 +22,8 @@ try:
         'src/run.py'
     ]
 
-    print(" ".join(command)) # Mostrar el comando a ejecutar
-    subprocess.run(" ".join(command), shell=True, check=True) # Ejecutarlo
+    print(" ".join(command))
+    subprocess.run(" ".join(command), shell=True, check=True)
 
     print("\n" + "="*50)
     print("Compilacion terminada.")
