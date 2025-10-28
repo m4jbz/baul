@@ -21,6 +21,7 @@ class UsbSelector(ctk.CTkToplevel):
         label = ctk.CTkLabel(self, text="Se detectaron varias USB.\nPor favor, selecciona una:")
         label.pack(pady=10, padx=10)
 
+        # Muestra todas las USB conectadas para seleccionar
         for usb in usbs:
             rb = ctk.CTkRadioButton(self, text=f"{usb.mountpoint} ({usb.device})",
                                     variable=self.usb_var, value=usb.mountpoint)
@@ -29,6 +30,7 @@ class UsbSelector(ctk.CTkToplevel):
         button = ctk.CTkButton(self, text="Aceptar", command=self.on_select)
         button.pack(pady=20)
 
+    # Al seleccionar una USB
     def on_select(self):
         self.selected_usb = Path(self.usb_var.get())
         self.destroy()
@@ -37,18 +39,22 @@ class UsbSelector(ctk.CTkToplevel):
         self.master.wait_window(self)
         return self.selected_usb
 
+# Encontrar USB
 def find_usb():
     # Se busca la opción removable en las particiones del sistema
     # lo cual nos indica que es una USB
     partitions = psutil.disk_partitions()
     usbs = [p for p in partitions if 'removable' in p.opts or 'REMOVABLE' in p.opts]
 
+    # No hay USB
     if len(usbs) == 0:
         return "NO_USB", None
 
+    # Hay mas de una USB
     if len(usbs) > 1:
         return "MULTIPLE_USB", usbs
 
+    # Solo hay una USB
     return "ONE_USB", Path(usbs[0].mountpoint)
 
 def handle_usb():
@@ -58,7 +64,6 @@ def handle_usb():
 
     # Manejar los casos de la USB
     if status == "NO_USB":
-        # Creamos una raíz temporal SOLO para el messagebox
         root_msg = ctk.CTk()
         root_msg.withdraw()
         messagebox.showerror("ERROR", "No se detectó ninguna unidad USB.\nPor favor, inserta una USB antes de iniciar el programa.")
@@ -66,9 +71,10 @@ def handle_usb():
         return
 
     if status == "MULTIPLE_USB":
-        # Creamos una raíz temporal SOLO para el selector
         root_selector = ctk.CTk()
         root_selector.withdraw()
+
+        # Se ocupa la clase UsbSelector para escoger la USB
         selector = UsbSelector(root_selector, usb_info)
         selected_path = selector.get_selection()
         root_selector.destroy()
@@ -79,7 +85,7 @@ def handle_usb():
     elif status == "ONE_USB":
         selected_path = usb_info
 
-    # Definimos las rutas clave
+    # Rutas importantes
     BAUL_PATH = selected_path / "Baul"
     CREDENTIALS_PATH = BAUL_PATH / ".credentials"
     KEY_FILE_PATH = CREDENTIALS_PATH / "vault.key"

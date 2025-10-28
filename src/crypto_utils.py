@@ -25,7 +25,7 @@ def derive_key(password: str, salt: bytes) -> bytes:
         backend=default_backend()
     )
     # Se codifica la contraseña a bytes antes de derivar
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    return base64.urlsafe_b64encode(kdf.derive(password.encode('utf-8')))
 
 def generate_vault_key(password: str) -> bytes:
     # Llave maestra, es la encargada de encriptar y decriptar los archivos
@@ -56,6 +56,6 @@ def unlock_vault_key(password: str, vault_key_content: bytes) -> Fernet:
 
         return Fernet(llave_fernet)
     except InvalidToken:
-        raise ValueError("ERROR >> Contraseña incorrecta")
+        raise ValueError("Contraseña incorrecta")
     except Exception as e:
-        raise ValueError(f"ERROR >> {e}")
+        raise ValueError(f"{e}")
