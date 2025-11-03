@@ -5,10 +5,10 @@ import customtkinter as ctk
 import os
 from tkinter import filedialog, messagebox
 
-import crypto_utils
+import crypto
 import login_gui
 
-class SetupWindow(ctk.CTk):
+class VentanaSetup(ctk.CTk):
     def __init__(self, baul_path, key_file_path):
         super().__init__()
 
@@ -27,7 +27,7 @@ class SetupWindow(ctk.CTk):
         self.show_initial_options()
 
     # Muestra la opcion de crear baul
-    def show_initial_options(self):
+    def mostrar_opciones_iniciales(self):
         self.clear_frame()
 
         label = ctk.CTkLabel(self.main_frame, text="No se ha encontrado un Baúl en esta USB.\nDebes crear uno nuevo para continuar.",
@@ -39,7 +39,7 @@ class SetupWindow(ctk.CTk):
         btn_create.pack(pady=20, fill="x", padx=20)
 
     # Iniciar un Baul desde 0
-    def show_create_vault(self):
+    def mostrar_crear_baul(self):
         self.clear_frame()
         label = ctk.CTkLabel(self.main_frame, text="Crea tu Contraseña Maestra", font=ctk.CTkFont(size=16))
         label.pack(pady=15)
@@ -59,7 +59,7 @@ class SetupWindow(ctk.CTk):
                                  command=self.show_initial_options)
         btn_back.pack(pady=5, fill="x", padx=20)
 
-    def create_new_vault(self):
+    def crear_nuevo_baul(self):
         password = self.pass_entry.get()
         confirm_password = self.confirm_pass_entry.get()
 
@@ -75,7 +75,7 @@ class SetupWindow(ctk.CTk):
 
         try:
             # Generar el contenido de la llave
-            vault_key_content = crypto_utils.generate_vault_key(password)
+            vault_key_content = crypto.generate_vault_key(password)
 
             # Crear directorios
             os.makedirs(self.credentials_path, exist_ok=True)
@@ -89,12 +89,12 @@ class SetupWindow(ctk.CTk):
         except Exception as e:
             messagebox.showerror("ERROR", f"No se pudo crear el Baúl: {e}")
 
-    def clear_frame(self):
+    def limpiar_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
 
     # Función para pasar al login en caso de exito de los casos anteriores
-    def launch_login(self):
+    def lanzar_login(self):
         self.destroy()
         login_app = login_gui.LoginWindow(baul_path=self.baul_path, key_file_path=self.key_file_path)
         login_app.mainloop()

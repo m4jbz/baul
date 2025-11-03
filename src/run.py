@@ -7,7 +7,7 @@ import setup_gui
 import login_gui 
 
 # Clase para poder seleccionar una USB si hay varias conectadas
-class UsbSelector(ctk.CTkToplevel):
+class SelectorUSB(ctk.CTkToplevel):
     def __init__(self, master, usbs):
         super().__init__(master)
         self.title("Seleccionar USB")
@@ -40,7 +40,7 @@ class UsbSelector(ctk.CTkToplevel):
         return self.selected_usb
 
 # Encontrar USB
-def find_usb():
+def encontrar_usb():
     # Se busca la opción removable en las particiones del sistema
     # lo cual nos indica que es una USB
     partitions = psutil.disk_partitions()
@@ -57,9 +57,9 @@ def find_usb():
     # Solo hay una USB
     return "ONE_USB", Path(usbs[0].mountpoint)
 
-def handle_usb():
+def configurar_usb():
     # Verificar la USB primero, ANTES de crear cualquier ventana
-    status, usb_info = find_usb()
+    status, usb_info = encontrar_usb()
     selected_path = None
 
     # Manejar los casos de la USB
@@ -75,7 +75,7 @@ def handle_usb():
         root_selector.withdraw()
 
         # Se ocupa la clase UsbSelector para escoger la USB
-        selector = UsbSelector(root_selector, usb_info)
+        selector = SelectorUSB(root_selector, usb_info)
         selected_path = selector.get_selection()
         root_selector.destroy()
 
@@ -93,14 +93,14 @@ def handle_usb():
     # Si no existe el directorio Baul, se usa setup_gui.py
     # para crearlo
     if not KEY_FILE_PATH.exists():
-        setup_app = setup_gui.SetupWindow(baul_path=BAUL_PATH, key_file_path=KEY_FILE_PATH)
+        setup_app = setup_gui.VentanaSetup(baul_path=BAUL_PATH, key_file_path=KEY_FILE_PATH)
         setup_app.mainloop()
     # Si existe, se usa login_gui.py para iniciar sesión
     else:
-        login_app = login_gui.LoginWindow(baul_path=BAUL_PATH, key_file_path=KEY_FILE_PATH)
+        login_app = login_gui.VentanaLogin(baul_path=BAUL_PATH, key_file_path=KEY_FILE_PATH)
         login_app.mainloop()
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
-    handle_usb()
+    configurar_usb()

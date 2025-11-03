@@ -15,7 +15,7 @@ ctk.set_default_color_theme("blue")
 # Clase para el arbol de archivos, hereda de la clase padre: CTkScrollableFrame
 # Ya que se podran tener varias carpetas y archivos, asi que es necesario que se
 # pueda scrollear
-class FileTreeView(ctk.CTkScrollableFrame):
+class VistaArbolArchivos(ctk.CTkScrollableFrame):
     def __init__(self, master, path, fernet: Fernet, **kwargs):
         super().__init__(master, **kwargs)
 
@@ -31,7 +31,7 @@ class FileTreeView(ctk.CTkScrollableFrame):
         self.real_path_map = {}
 
         # Llenar el árbol
-        self.populate_tree(self.path, 0)
+        self.rellenar_arbol(self.path, 0)
 
     # Al activar o desactivar un checkbox
     def on_checkbox_toggle(self, display_path):
@@ -54,7 +54,7 @@ class FileTreeView(ctk.CTkScrollableFrame):
     # Toma los datos: self (el objeto mismo), current_path: el directorio real y actual
     # row: el numero de fila, indent: la sangría para poner los archivos
     # parent_display_path: el nombre legible de la carpeta/directorio
-    def populate_tree(self, current_path, row, indent=0, parent_display_path=""):
+    def rellenar_arbol(self, current_path, row, indent=0, parent_display_path=""):
         try:
             # Se leen los nombres de archivo cifrados del disco, se ordenan con sorted()
             # para una mejor presentación
@@ -138,14 +138,14 @@ class FileTreeView(ctk.CTkScrollableFrame):
             row += 1
 
             if is_dir:
-                row = self.populate_tree(real_item_path, row, indent + 1, parent_display_path=display_path)
+                row = self.rellenar_arbol(real_item_path, row, indent + 1, parent_display_path=display_path)
 
         if parent_display_path:
             self.folder_children[parent_display_path] = current_display_children
 
         return row
 
-    def get_checked_items(self):
+    def obtener_items_marcados(self):
         checked_real_paths = []
         for display_path, checkbox in self.checkboxes.items():
             if checkbox.get() == 1:
@@ -160,12 +160,12 @@ class FileTreeView(ctk.CTkScrollableFrame):
         self.checkboxes = {}
         self.folder_children = {}
         self.real_path_map = {}
-        self.populate_tree(self.path, 0, parent_display_path="")
+        self.rellenar_arbol(self.path, 0, parent_display_path="")
 
 # Clase para actualizar automaticamente el arbol de archivos
 # Utiliza un hilo de procesamiento separado para no congelar
 # la interfaz
-class ChangeHandler(FileSystemEventHandler):
+class GestorActualizaciones(FileSystemEventHandler):
     def __init__(self, app_instance):
         self.app = app_instance
         self.last_event_time = 0 # Inicia el cronometro
@@ -215,7 +215,7 @@ class App(ctk.CTk, TkinterDnD.Tk):
         file_tree.grid_columnconfigure(0, weight=1)
 
         # Arbol jerarquico de archivos
-        self.tree_view = FileTreeView(file_tree, path=self.baul_path, fernet=self.fernet)
+        self.tree_view = VistaArbolArchivos(file_tree, path=self.baul_path, fernet=self.fernet)
         self.tree_view.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
 
         drop_area = ctk.CTkFrame(self)
@@ -231,7 +231,7 @@ class App(ctk.CTk, TkinterDnD.Tk):
 
         # Se encarga de actualizar el arbol de archivos cada cierto tiempo
         self.observer = Observer()
-        event_handler = ChangeHandler(self)
+        event_handler = GestorActualizaciones(self)
         self.observer.schedule(event_handler, self.baul_path, recursive=True)
         self.observer.start()
 
@@ -255,14 +255,14 @@ class App(ctk.CTk, TkinterDnD.Tk):
         try:
             for item_path_str in files_dragged:
                 item_path = Path(item_path_str)
-                self.encrypt_and_copy_item(item_path, self.baul_path)
+                self.cifrar_y_copiar(item_path, self.baul_path)
 
             messagebox.showinfo("Éxito", f"{len(files_dragged)} elemento(s) cifrados y copiados a la USB.")
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error al cifrar y copiar:\n{e}")
 
     # Se encarga de la encripción y copiado de los archivos
-    def encrypt_and_copy_item(self, source_path: Path, destination_folder: str):
+    def cifrar_y_copiar(self, source_path: Path, destination_folder: str):
         if source_path.is_dir():
             # Si es una carpeta, ciframos su nombre y la creamos
             encrypted_name_hex = self.fernet.encrypt(source_path.name.encode('utf-8')).hex()
@@ -291,7 +291,7 @@ class App(ctk.CTk, TkinterDnD.Tk):
     # Esta función ahora DESCIFRA todo lo seleccionado de las checkboxes
     def button_event(self):
         # get_checked_items() ya nos da las rutas reales (cifradas)
-        checked_items_real_paths = self.tree_view.get_checked_items()
+        checked_items_real_paths = self.tree_view.obtener_items_marcados()
 
         # Si no se selecciono nada, mostrar un warning
         if not checked_items_real_paths:
@@ -321,14 +321,14 @@ class App(ctk.CTk, TkinterDnD.Tk):
             # Intenta decriptar y copiar los archivos de la USB a la ruta
             try:
                 for item_path_str in top_level_items:
-                    self.decrypt_and_copy_item(Path(item_path_str), destination_folder)
+                    self.decifrar_y_copiar(Path(item_path_str), destination_folder)
 
                 messagebox.showinfo("Éxito", f"{len(top_level_items)} elemento(s) descifrados y copiados a:\n{destination_folder}")
             except Exception as e:
                 messagebox.showerror("Error", f"Ocurrió un error al descifrar y copiar:\n{e}")
 
     # Se encarga de decriptar y mandar los archivos de la USB a la ruta/carpeta dada
-    def decrypt_and_copy_item(self, source_path: Path, destination_folder: str):
+    def decifrar_y_copiar(self, source_path: Path, destination_folder: str):
         if source_path.is_dir():
             # Si es una carpeta, desciframos su nombre
             try:

@@ -11,7 +11,7 @@ from cryptography.hazmat.backends import default_backend
 # Esta función convierta una contraseña normal
 # o humanamente recordable a un conjunto de bytes
 # encryptados.
-def derive_key(password: str, salt: bytes) -> bytes:
+def obtener_llave(password: str, salt: bytes) -> bytes:
     # PBKDF2 -> Password-Based Key Derivation Function 2
     # HMAC   -> Hash-Based Message Authentication Code
     kdf = PBKDF2HMAC(
@@ -27,13 +27,13 @@ def derive_key(password: str, salt: bytes) -> bytes:
     # Se codifica la contraseña a bytes antes de derivar
     return base64.urlsafe_b64encode(kdf.derive(password.encode('utf-8')))
 
-def generate_vault_key(password: str) -> bytes:
+def generar_llave(password: str) -> bytes:
     # Llave maestra, es la encargada de encriptar y decriptar los archivos
     key_fernet = Fernet.generate_key()
     salt = os.urandom(16)
 
     # Esta llave se encargara de desbloquear a la llave maestra
-    key_to_encrypt = derive_key(password, salt)
+    key_to_encrypt = obtener_llave(password, salt)
     f = Fernet(key_to_encrypt)
     key_fernet_encrypted = f.encrypt(key_fernet)
 
@@ -41,14 +41,14 @@ def generate_vault_key(password: str) -> bytes:
 
 # Esta función divide la key en dos (salt, contraseña cifrada)
 # e intenta desifrarla.
-def unlock_vault_key(password: str, vault_key_content: bytes) -> Fernet:
+def desbloquear_llave(password: str, vault_key_content: bytes) -> Fernet:
     try:
         # Extraer el salt y la llave cifrada
         salt = vault_key_content[:16]
         llave_fernet_cifrada = vault_key_content[16:]
 
         # Derivar la llave de descifrado
-        llave_para_descifrar = derive_key(password, salt)
+        llave_para_descifrar = obtener_llave(password, salt)
 
         # Intentar descifrar
         f = Fernet(llave_para_descifrar)
